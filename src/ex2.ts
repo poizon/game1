@@ -25,7 +25,7 @@ class ZParticle extends Text {
   await app.init({
     resizeTo: window, // Автоматическое растягивание под экран
     background: "#ffffff",
-    // preference: "webgl",
+    preference: "auto",
   });
 
   document.body.appendChild(app.canvas);
