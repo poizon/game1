@@ -7,37 +7,7 @@ import {
   TextStyle,
 } from "pixi.js";
 
-// 1. Инициализация приложения
-const app = new Application();
-await app.init({
-  width: 800,
-  height: 600,
-  backgroundColor: 0x0f0c1b,
-  preference: "webgl",
-}); // Ночной цвет фона
-document.body.appendChild(app.canvas);
-
-// 2. Создаем героя (дыхание)
-const texture = await Assets.load("/assets/hero_sleeping.png");
-const heroContainer = new Container();
-heroContainer.x = 400;
-heroContainer.y = 400;
-app.stage.addChild(heroContainer);
-
-const hero = new Sprite(texture);
-hero.anchor.set(0.5, 1.0); // Точка опоры внизу
-heroContainer.addChild(hero);
-
-// 3. Настройка стиля для букв "Z"
-const zStyle = new TextStyle({
-  fontFamily: "Arial",
-  fontSize: 24,
-  fill: "#a5d8ff", // Нежно-голубой цвет светящихся букв
-  fontWeight: "bold",
-  align: "center",
-});
-
-// Интерфейс для пользовательских данных буквы Z
+// 1. Интерфейс для данных буквы Z
 interface ZUserData {
   speedY: number;
   wiggleSpeed: number;
@@ -45,81 +15,104 @@ interface ZUserData {
   wiggleRange: number;
 }
 
-// Массив для хранения активных букв на экране
-const zParticles: Text[] = [];
+// 2. Создаем собственный класс, расширяющий Pixi Text, чтобы TypeScript не ругался
+class ZParticle extends Text {
+  public userData!: ZUserData;
+}
 
-// Таймеры для контроля появления букв
-let sleepTime = 0;
-let spawnTimer = 0;
-const SPAWN_INTERVAL = 45; // Каждые ~45 кадров (примерно раз в 0.7 секунды) будет вылетать новая "Z"
+(async () => {
+  // Инициализация приложения PixiJS v8
+  const app = new Application();
 
-// 4. Главный игровой цикл
-app.ticker.add((ticker) => {
-  const dt = ticker.deltaTime;
+  await app.init({
+    background: "#ffffff",
+    resizeTo: window,
+  });
 
-  // --- АНИМАЦИЯ ДЫХАНИЯ ---
-  sleepTime += 0.04 * dt;
-  const pulse = Math.sin(sleepTime);
-  hero.scale.y = 1.0 + pulse * 0.03;
-  hero.scale.x = 1.0 - pulse * 0.01;
+  document.body.appendChild(app.canvas);
 
-  // --- ГЕНЕРАЦИЯ БУКВ "Z" ---
-  spawnTimer += dt;
-  if (spawnTimer >= SPAWN_INTERVAL) {
-    spawnTimer = 0;
+  // Загружаем героя
+  const texture = await Assets.load("/assets/hero_sleeping.png");
+  const heroContainer = new Container();
+  heroContainer.x = app.screen.width * 0.8;
+  heroContainer.y = app.screen.height * 0.9;
+  app.stage.addChild(heroContainer);
 
-    // Создаем текст "Z"
-    const zText = new Text({ text: "Z", style: zStyle });
+  const hero = new Sprite(texture);
+  hero.anchor.set(0.5, 1.0);
+  heroContainer.addChild(hero);
 
-    // Позиция появления (примерно у головы героя)
-    // Смещаем относительно центра контейнера героя
-    zText.x = heroContainer.x + 30; // Чуть правее центра
-    zText.y = heroContainer.y - 120; // Выше тела (на уровне головы)
+  // Настройка стиля букв
+  const zStyle = new TextStyle({
+    fontFamily: "Arial",
+    fontSize: 24,
+    fill: "#000000",
+    fontWeight: "bold",
+    align: "center",
+  });
 
-    zText.anchor.set(0.5);
-    zText.alpha = 1;
+  // Массив строго типизирован нашими частицами ZParticle
+  const zParticles: ZParticle[] = [];
 
-    // Начальный случайный размер для разнообразия
-    zText.scale.set(0.5 + Math.random() * 0.3);
+  let sleepTime = 0;
+  let spawnTimer = 0;
+  const SPAWN_INTERVAL = 45;
 
-    // Индивидуальные параметры для движения этой конкретной буквы
-    zText.label = "Z"; // Явное указание типа, чтобы TypeScript не ругался на userData
-    (zText as any).userData = {
-      speedY: 1.5 + Math.random() * 1, // Скорость полета вверх
-      wiggleSpeed: 0.05 + Math.random() * 0.05, // Скорость покачивания
-      wiggleTime: Math.random() * 100, // Фаза покачивания
-      wiggleRange: 0.5 + Math.random() * 0.5, // Амплитуда покачивания вбок
-    } as ZUserData;
+  app.ticker.add((ticker) => {
+    const dt = ticker.deltaTime;
 
-    // Добавляем на сцену и в наш массив
-    app.stage.addChild(zText);
-    zParticles.push(zText);
-  }
+    // --- АНИМАЦИЯ ДЫХАНИЯ ---
+    sleepTime += 0.04 * dt;
+    const pulse = Math.sin(sleepTime);
+    hero.scale.y = 1.0 + pulse * 0.03;
+    hero.scale.x = 1.0 - pulse * 0.01;
 
-  // --- АНИМАЦИЯ И ОБНОВЛЕНИЕ БУКВ "Z" ---
-  for (let i = zParticles.length - 1; i >= 0; i--) {
-    const z = zParticles[i];
-    const data = (z as any).userData as ZUserData;
+    // --- ГЕНЕРАЦИЯ БУКВ "Z" ---
+    spawnTimer += dt;
+    if (spawnTimer >= SPAWN_INTERVAL) {
+      spawnTimer = 0;
 
-    // 1. Движение вверх
-    z.y -= data.speedY * dt;
+      // Создаем объект нашего кастомного класса
+      const zText = new ZParticle({ text: "Z", style: zStyle });
 
-    // 2. Покачивание влево-вправо по синусоиде
-    data.wiggleTime += data.wiggleSpeed * dt;
-    z.x += Math.sin(data.wiggleTime) * data.wiggleRange * dt;
+      zText.x = heroContainer.x - 10;
+      zText.y = heroContainer.y - 400;
+      zText.anchor.set(0.5);
+      zText.alpha = 1;
+      zText.scale.set(0.5 + Math.random() * 0.3);
 
-    // 3. Плавное увеличение размера (эффект удаления или рассеивания)
-    z.scale.x += 0.005 * dt;
-    z.scale.y += 0.005 * dt;
+      // Теперь TypeScript понимает userData и дает автокомплит без (as any)
+      zText.userData = {
+        speedY: 1.5 + Math.random() * 1,
+        wiggleSpeed: 0.05 + Math.random() * 0.05,
+        wiggleTime: Math.random() * 100,
+        wiggleRange: 0.5 + Math.random() * 0.5,
+      };
 
-    // 4. Медленное исчезновение (растворение в воздухе)
-    z.alpha -= 0.01 * dt;
-
-    // 5. Если буква полностью прозрачная, удаляем ее из памяти
-    if (z.alpha <= 0) {
-      app.stage.removeChild(z); // Удаляем со сцены Pixi
-      z.destroy(); // Очищаем текстурные ресурсы памяти
-      zParticles.splice(i, 1); // Удаляем из массива
+      app.stage.addChild(zText);
+      zParticles.push(zText);
     }
-  }
-});
+
+    // --- АНИМАЦИЯ И ОБНОВЛЕНИЕ БУКВ "Z" ---
+    for (let i = zParticles.length - 1; i >= 0; i--) {
+      const z = zParticles[i];
+      const data = z.userData; // Чистый код без приведений типов
+
+      z.y -= data.speedY * dt;
+
+      data.wiggleTime += data.wiggleSpeed * dt;
+      z.x += Math.sin(data.wiggleTime) * data.wiggleRange * dt;
+
+      z.scale.x += 0.005 * dt;
+      z.scale.y += 0.005 * dt;
+
+      z.alpha -= 0.01 * dt;
+
+      if (z.alpha <= 0) {
+        app.stage.removeChild(z);
+        z.destroy();
+        zParticles.splice(i, 1);
+      }
+    }
+  });
+})();
