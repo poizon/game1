@@ -44,6 +44,26 @@ import { Dialog01 } from "./Dialog01"; //
   container.y = app.screen.height / 2;
   app.stage.addChild(container);
 
+  function resizeBackground(img: Sprite) {
+    // Вариант 1: Жестко растянуть под экран (могут нарушиться пропорции картинки)
+    img.width = app.screen.width;
+    img.height = app.screen.height;
+
+    /*
+      // Вариант 2: Если нужно СОХРАНИТЬ пропорции (аналог CSS background-size: cover)
+      // Раскомментируйте этот блок, если картинка не должна сжиматься/растягиваться искаженно:
+
+      const scaleX = app.screen.width / textures["back1"].width;
+      const scaleY = app.screen.height / textures["back1"].height;
+      const maxScale = Math.max(scaleX, scaleY);
+
+      back1.scale.set(maxScale);
+      // Центрируем обрезку
+      back1.x = (app.screen.width - back1.width) / 2;
+      back1.y = (app.screen.height - back1.height) / 2;
+      */
+  }
+
   // Функция для отслеживания изменения размеров окна
   window.addEventListener("resize", () => {
     container.x = app.screen.width / 2;
@@ -53,26 +73,32 @@ import { Dialog01 } from "./Dialog01"; //
   // 3. СОЗДАНИЕ СПРАЙТОВ ИЗ ТЕКСТУР (исправлено)
   const smoke1 = new Sprite(textures["smoke1"]);
   smoke1.anchor.set(0.5);
+  resizeBackground(smoke1);
   container.addChild(smoke1);
 
   const smoke2 = new Sprite(textures["smoke2"]);
   smoke2.anchor.set(0.5);
+  resizeBackground(smoke2);
   container.addChild(smoke2);
 
   const back2 = new Sprite(textures["back2"]);
   back2.anchor.set(0.5);
+  resizeBackground(back2);
   container.addChild(back2);
 
   const back1 = new Sprite(textures["back1"]);
   back1.anchor.set(0.5);
+  resizeBackground(back1);
   container.addChild(back1);
 
   const title = new Sprite(textures["title"]);
   title.anchor.set(0.5);
+  resizeBackground(title);
   container.addChild(title);
 
   const chars = new Sprite(textures["chars"]);
   chars.anchor.set(0.5);
+  resizeBackground(chars);
   container.addChild(chars);
 
   const dialog = new Dialog01();
