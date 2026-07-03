@@ -1,13 +1,4 @@
-import {
-  Application,
-  Assets,
-  Container,
-  Sprite,
-  Texture,
-  Text,
-  TextStyle,
-  BlurFilter,
-} from "pixi.js";
+import { Application, Assets, Container, Sprite, Texture } from "pixi.js";
 
 import { Dialog01 } from "./Dialog01"; //
 
