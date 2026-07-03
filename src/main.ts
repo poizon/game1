@@ -3,262 +3,113 @@ import {
   Assets,
   Container,
   Sprite,
+  Texture,
   Text,
   TextStyle,
-  Graphics, // Добавлен импорт для создания кнопки
+  BlurFilter,
 } from "pixi.js";
 
-import { BombPuzzle } from "./BombPuzzle"; // Путь к вашему новому файлу
-
-let bombGame: BombPuzzle | null = null;
-let isPuzzleActive = false;
-
-// Заглушка, так как blanket использовался в функциях скрытия, но отсутствовал в коде
-let blanket: Sprite | null = null;
-
-// Интерфейс для данных буквы Z
-interface ZUserData {
-  speedY: number;
-  wiggleSpeed: number;
-  wiggleTime: number;
-  wiggleRange: number;
-}
-
-class ZParticle extends Text {
-  public userData!: ZUserData;
-}
+import { Dialog01 } from "./Dialog01"; //
 
 (async () => {
   const app = new Application();
 
   await app.init({
-    resizeTo: window, // Автоматическое растягивание под экран
-    background: "#ffffff",
+    resizeTo: window,
+    background: "#000000",
   });
 
   document.body.appendChild(app.canvas);
 
   // 1. ЗАГРУЗКА ИЗОБРАЖЕНИЙ
-  const [bgTexture, heroTexture] = await Promise.all([
-    Assets.load("/assets/bckgrnd.png"),
-    Assets.load("/assets/chars_big.png"),
-  ]);
+  const frameFiles = [
+    "back1.png",
+    "back2.png",
+    "button.png",
+    "chars.png",
+    "smoke1.png",
+    "smoke2.png",
+    "title.png",
+  ];
 
-  // 2. СОЗДАНИЕ СЛОЕВ
+  // Массив путей к файлам
+  const assetPaths = frameFiles.map((file) => `/assets/frames/${file}`);
 
-  // Слой 1: Фон (самый нижний)
-  const background = new Sprite(bgTexture);
-  background.anchor.set(0.5); // Центрируем фон
-  app.stage.addChild(background);
+  // Assets.load возвращает объект/словарь, где ключи — это пути
+  const loadedAssets = await Assets.load<Texture>(assetPaths);
 
-  // Слой 2: Контейнер для героя (чтобы он дышал локально)
-  const heroContainer = new Container();
-  app.stage.addChild(heroContainer);
-
-  const hero = new Sprite(heroTexture);
-  hero.anchor.set(2.5, 1.0); // Точка опоры внизу персонажа
-  heroContainer.addChild(hero);
-
-  // --- СОЗДАНИЕ КНОПКИ ДЛЯ ЗАПУСКА МИНИ-ИГРЫ ---
-  const startButton = new Container();
-  startButton.eventMode = "static";
-  startButton.cursor = "pointer";
-  app.stage.addChild(startButton);
-
-  const btnBg = new Graphics();
-  btnBg.roundRect(0, 0, 180, 50, 8);
-  btnBg.fill({ color: 0xcc2222 }); // Красный цвет кнопки
-  startButton.addChild(btnBg);
-
-  const btnStyle = new TextStyle({
-    fontFamily: "Arial",
-    fontSize: 16,
-    fill: "#ffffff",
-    fontWeight: "bold",
-  });
-  const btnText = new Text({ text: "Обезвредить бомбу", style: btnStyle });
-  btnText.anchor.set(0.5);
-  btnText.x = 180 / 2;
-  btnText.y = 50 / 2;
-  startButton.addChild(btnText);
-
-  // Эффекты наведения мыши (Hover)
-  startButton.on("pointerover", () => {
-    btnBg.clear();
-    btnBg.roundRect(0, 0, 180, 50, 8);
-    btnBg.fill({ color: 0xff3333 });
-  });
-  startButton.on("pointerout", () => {
-    btnBg.clear();
-    btnBg.roundRect(0, 0, 180, 50, 8);
-    btnBg.fill({ color: 0xcc2222 });
+  // Создаем объект с загруженными ТЕКСТУРАМИ (исправлено)
+  const textures: Record<string, Texture> = {};
+  frameFiles.forEach((file) => {
+    const key = file.replace(".png", "");
+    const fullPath = `/assets/frames/${file}`;
+    textures[key] = loadedAssets[fullPath];
   });
 
-  // Клик по кнопке
-  startButton.on("pointerdown", () => {
-    if (!isPuzzleActive) {
-      openBombPuzzle();
-    }
+  // 2. СОЗДАНИЕ И ЦЕНТРИРОВАНИЕ КОНТЕЙНЕРА (исправлено)
+  const container = new Container();
+  // Помещаем контейнер строго в центр экрана
+  container.x = app.screen.width / 2;
+  container.y = app.screen.height / 2;
+  app.stage.addChild(container);
+
+  // Функция для отслеживания изменения размеров окна
+  window.addEventListener("resize", () => {
+    container.x = app.screen.width / 2;
+    container.y = app.screen.height / 2;
   });
 
-  // --- ФУНКЦИЯ ОБНОВЛЕНИЯ ПОЗИЦИЙ (RESIZE) ---
-  function updateLayout() {
-    const centerX = app.screen.width * 0.5;
-    const centerY = app.screen.height * 0.5;
+  // 3. СОЗДАНИЕ СПРАЙТОВ ИЗ ТЕКСТУР (исправлено)
+  const smoke1 = new Sprite(textures["smoke1"]);
+  smoke1.anchor.set(0.5);
+  container.addChild(smoke1);
 
-    // Удерживаем фон строго по центру
-    background.x = centerX;
-    background.y = centerY;
+  const smoke2 = new Sprite(textures["smoke2"]);
+  smoke2.anchor.set(0.5);
+  container.addChild(smoke2);
 
-    // Удерживаем героя в его относительных координатах
-    heroContainer.x = centerX + 240;
-    heroContainer.y = centerY + 140;
+  const back2 = new Sprite(textures["back2"]);
+  back2.anchor.set(0.5);
+  container.addChild(back2);
 
-    // Позиционируем кнопку в правом верхнем углу
-    const padding = 20;
-    startButton.x = app.screen.width - 180 - padding;
-    startButton.y = padding;
+  const back1 = new Sprite(textures["back1"]);
+  back1.anchor.set(0.5);
+  container.addChild(back1);
 
-    // Центрируем мини-игру, если она запущена
-    if (isPuzzleActive) {
-      centerPuzzle();
-    }
-  }
+  const title = new Sprite(textures["title"]);
+  title.anchor.set(0.5);
+  container.addChild(title);
 
-  // Применяем позиции при старте и вешаем на событие ресайза PixiJS v8
-  updateLayout();
-  app.renderer.on("resize", updateLayout);
+  const chars = new Sprite(textures["chars"]);
+  chars.anchor.set(0.5);
+  container.addChild(chars);
 
-  // 4. НАСТРОЙКА БУКВ "Z"
-  const zStyle = new TextStyle({
-    fontFamily: "Arial",
-    fontSize: 24,
-    fill: "#a5d8ff",
-    fontWeight: "bold",
-    align: "center",
+  const dialog = new Dialog01();
+  container.addChild(dialog);
+
+  const button = new Sprite(textures["button"]);
+  button.anchor.set(0.5);
+  button.y = -50;
+  button.eventMode = "static";
+  button.cursor = "pointer";
+
+  button.on("pointerdown", () => {
+    button.scale.set(0.95);
   });
 
-  const zParticles: ZParticle[] = [];
-  let sleepTime = 0;
-  let spawnTimer = 0;
-  const SPAWN_INTERVAL = 45;
+  button.on("pointerup", () => {
+    button.scale.set(1);
+    dialog.show();
+  });
 
-  function openBombPuzzle() {
-    isPuzzleActive = true;
+  button.on("pointerupoutside", () => {
+    button.scale.set(1);
+  });
 
-    // 1. Прячем сцену со спящим героем и кнопку запуска
-    background.visible = false;
-    heroContainer.visible = false;
-    startButton.visible = false;
-    if (blanket) blanket.visible = false;
-
-    // 2. Создаем экземпляр головоломки, передавая функции успеха и провала
-    bombGame = new BombPuzzle(
-      () => {
-        closeBombPuzzle();
-        alert("Успешно! Бомба обезврежена. Герой продолжает мирно спать.");
-      },
-      () => {
-        closeBombPuzzle();
-        alert(
-          "БАБАХ! Бомба взорвалась! Персонаж резко вскакивает со сны в холодном поту.",
-        );
-      },
-    );
-
-    // 3. Добавляем на экран и центрируем
-    app.stage.addChild(bombGame);
-    centerPuzzle();
-  }
-
-  function closeBombPuzzle() {
-    if (bombGame) {
-      app.stage.removeChild(bombGame);
-      bombGame.destroyPuzzle();
-      bombGame = null;
-    }
-
-    isPuzzleActive = false;
-
-    // Возвращаем видимость спящему герою и кнопке
-    background.visible = true;
-    heroContainer.visible = true;
-    startButton.visible = true;
-    if (blanket) blanket.visible = true;
-  }
-
-  function centerPuzzle() {
-    if (bombGame && isPuzzleActive) {
-      bombGame.x = app.screen.width * 0.5;
-      bombGame.y = app.screen.height * 0.5;
-    }
-  }
+  container.addChild(button);
 
   // 5. ГЛАВНЫЙ ИГРОВОЙ ЦИКЛ
   app.ticker.add((ticker) => {
-    const dt = ticker.deltaTime;
-
-    // --- АНИМАЦИЯ ДЫХАНИЯ ---
-    sleepTime += 0.04 * dt;
-    const pulse = Math.sin(sleepTime);
-    hero.scale.y = 1.0 + pulse * 0.025;
-    hero.scale.x = 1.0 - pulse * 0.008;
-
-    // --- ГЕНЕРАЦИЯ БУКВ "Z" ---
-    // Генерируем буквы только тогда, когда герой спит (мини-игра закрыта)
-    if (!isPuzzleActive) {
-      spawnTimer += dt;
-      if (spawnTimer >= SPAWN_INTERVAL) {
-        spawnTimer = 0;
-
-        const zText = new ZParticle({ text: "Z", style: zStyle });
-
-        zText.x = heroContainer.x - 340;
-        zText.y = heroContainer.y - 240;
-        zText.anchor.set(0.5);
-        zText.alpha = 1;
-        zText.scale.set(0.5 + Math.random() * 0.3);
-
-        zText.userData = {
-          speedY: 1.5 + Math.random() * 1,
-          wiggleSpeed: 0.05 + Math.random() * 0.05,
-          wiggleTime: Math.random() * 100,
-          wiggleRange: 0.5 + Math.random() * 0.5,
-        };
-
-        app.stage.addChild(zText);
-        zParticles.push(zText);
-      }
-    }
-
-    // --- АНИМАЦИЯ И ОБНОВЛЕНИЕ БУКВ "Z" ---
-    for (let i = zParticles.length - 1; i >= 0; i--) {
-      const z = zParticles[i];
-
-      // Если запущена головоломка, мгновенно убираем старые буквы с экрана
-      if (isPuzzleActive) {
-        app.stage.removeChild(z);
-        z.destroy();
-        zParticles.splice(i, 1);
-        continue;
-      }
-
-      const data = z.userData;
-      z.y -= data.speedY * dt;
-
-      data.wiggleTime += data.wiggleSpeed * dt;
-      z.x += Math.sin(data.wiggleTime) * data.wiggleRange * dt;
-
-      z.scale.x += 0.005 * dt;
-      z.scale.y += 0.005 * dt;
-
-      z.alpha -= 0.01 * dt;
-
-      if (z.alpha <= 0) {
-        app.stage.removeChild(z);
-        z.destroy();
-        zParticles.splice(i, 1);
-      }
-    }
+    dialog.update(ticker.elapsedMS);
   });
 })();
