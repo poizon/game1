@@ -90,6 +90,7 @@ import { Dialog01 } from "./Dialog01"; //
 
   button.on("pointerup", () => {
     button.scale.set(1);
+    button.visible = false;
     dialog.show();
   });
 
